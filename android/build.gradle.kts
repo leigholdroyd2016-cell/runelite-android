@@ -587,3 +587,6 @@ if (androidSdkAvailable) {
         )
     }
 }
+
+// Fork: don't upload R8 mapping files to the upstream project's Firebase Crashlytics.
+tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach { enabled = false }
