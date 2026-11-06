@@ -43,7 +43,8 @@ object AndroidCrashReporter {
         installed = true
         try {
             val crashlytics = FirebaseCrashlytics.getInstance()
-            crashlytics.isCrashlyticsCollectionEnabled = true
+            // Fork: don't send this modified build's crashes to the upstream project's Crashlytics.
+            crashlytics.isCrashlyticsCollectionEnabled = false
 
             // Static context. Crashlytics already records the Android SDK and the app
             // versionCode/Name from the package manifest, so we only add things the

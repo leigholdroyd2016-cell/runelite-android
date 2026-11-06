@@ -1,6 +1,6 @@
 name: CI
 
-on: [ push, pull_request ]
+on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
   build:
@@ -11,6 +11,9 @@ jobs:
 
     env:
       GRADLE_OPTS: "-Dfile:encoding=UTF-8"
+      # Fork: tag builds as <upstream tag>-<run number> and point the in-app updater at this repo.
+      FORK_BUILD: ${{ github.repository != 'zeruth/runelite-android' && github.run_number || '' }}
+      UPDATE_REPO: ${{ github.repository }}
 
     steps:
       - name: Checkout
@@ -59,7 +62,8 @@ jobs:
 
       - name: Resolve release version
         id: version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # Fork: also publish on manual/automatic runs (the upstream-sync workflow starts one).
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -125,7 +129,10 @@ jobs:
           APK=$(find android/build/outputs/apk/release -name '*.apk' | head -n1)
           test -n "$APK"
           mv "$APK" "runelite-android_$TAG.apk"
-          gh release create "$TAG" "runelite-android_$TAG.apk" \
+          # Fork: the same APK under a fixed name, so .../releases/latest/download/runelite-android.apk
+          # always downloads the newest build (handy from the emulator's browser).
+          cp "runelite-android_$TAG.apk" runelite-android.apk
+          gh release create "$TAG" "runelite-android_$TAG.apk" runelite-android.apk \
             --target "$GITHUB_SHA" \
             --title "$TAG" \
             --generate-notes

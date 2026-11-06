@@ -72,7 +72,12 @@ configurations.configureEach {
 val versionMajor = 1
 val versionMinor = 0
 val versionPatch = 61
-val releaseTag = "$versionMajor.$versionMinor.${versionPatch}_${project.version}"
+// Fork builds (CI sets FORK_BUILD to the run number) get a "-<n>" suffix so every rebuild of the
+// same upstream version is still "newer" to the in-app updater.
+val forkBuild = System.getenv("FORK_BUILD")?.trim().orEmpty()
+val releaseTag = "$versionMajor.$versionMinor.${versionPatch}_${project.version}" + (if (forkBuild.isNotEmpty()) "-$forkBuild" else "")
+// GitHub repo the in-app updater checks for releases (CI sets UPDATE_REPO to the building repo).
+val updateRepo = System.getenv("UPDATE_REPO")?.trim()?.takeIf { it.isNotEmpty() } ?: "zeruth/runelite-android"
 val releaseVersionCode = (versionMajor * 1_000_000) + (versionMinor * 1_000) + versionPatch
 
 // CI reads the same values used by the APK and the in-app updater.
@@ -374,6 +379,7 @@ if (androidSdkAvailable) {
             versionCode = releaseVersionCode
             versionName = releaseTag
             buildConfigField("String", "RELEASE_TAG", "\"$releaseTag\"")
+            buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
             // Anti-tamper hook. SignatureGuard reads this field at MainActivity init and
             // refuses to run when the on-device APK's signing SHA-256 doesn't match.
             // Default is empty (= skip), so debug builds and release-with-debug-fallback

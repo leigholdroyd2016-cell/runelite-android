@@ -33,6 +33,9 @@ internal sealed interface UpdateState
 internal object UpdateGate
 {
     private const val TAG = "UpdateGate"
+    // Fork: a build that would update from the official repo (a local build, not from your
+    // fork's CI) must not replace itself with an APK that lacks local plugin support.
+    private val DISABLE_SELF_UPDATE = net.runelite.mp.BuildConfig.UPDATE_REPO == "zeruth/runelite-android"
     private const val CHECK_TIMEOUT_MS = 4_000L
     // Watch wifi is slow to wake; give the check longer since an update there is unattended.
     private const val WATCH_CHECK_TIMEOUT_MS = 10_000L
@@ -53,6 +56,7 @@ internal object UpdateGate
     suspend fun checkThenBoot(context: Context, scope: CoroutineScope, boot: () -> Unit)
     {
         if (bootStarted) return
+        if (DISABLE_SELF_UPDATE) { startBoot(boot); return }
         autoUpdate = true
         // Blocking IO can't be cancelled, so time out the await rather than the request.
         val check = scope.async(Dispatchers.IO) { UpdateChecker.newerRelease() }

@@ -1,0 +1,70 @@
+# Fork only: keeps this fork's main branch up to date with zeruth/runelite-android and, when the
+# official app changes, builds and publishes a new release of the fork (with its patches kept).
+# The app's built-in updater then offers that release on the emulator.
+#
+# Runs every 6 hours, or from the Actions tab ("Sync upstream" -> Run workflow).
+# If the official changes clash with the fork's patch, the run fails and GitHub emails you;
+# nothing is published until it's fixed.
+
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    if: github.repository != 'zeruth/runelite-android'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          # Optional secret: a personal access token with "repo" and "workflow" scopes. Only needed
+          # when the official repo changes its own workflow files, which the default token can't push.
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Merge official changes
+        id: sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/zeruth/runelite-android.git
+          git fetch --no-tags upstream main
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with the official repo."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git log --oneline HEAD..upstream/main
+          if ! git merge --no-edit upstream/main; then
+            git merge --abort
+            echo "::error::The official changes conflict with the fork's patch. Merge zeruth/runelite-android main into this fork by hand (or ask Claude to)."
+            exit 1
+          fi
+          if ! git push origin HEAD:main; then
+            echo "::error::Push refused. If the official repo changed its workflow files, add a SYNC_TOKEN secret (personal access token with repo + workflow scopes)."
+            exit 1
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with the default token doesn't start other workflows, so start the build
+      # here. (With SYNC_TOKEN the push itself starts it.)
+      - name: Build and publish
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
+        run: |
+          if [ "$HAS_SYNC_TOKEN" = "true" ]; then
+            echo "Pushed with SYNC_TOKEN; the CI workflow starts from the push."
+          else
+            gh workflow run CI.yml --ref main
+          fi

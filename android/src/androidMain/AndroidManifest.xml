@@ -23,6 +23,9 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <!-- Fork: no crash reports or analytics to the upstream project's Firebase. -->
+        <meta-data android:name="firebase_crashlytics_collection_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_deactivated" android:value="true" />
         <service android:name=".account.RuneLiteLoginService" android:exported="false" android:foregroundServiceType="shortService" />
         <profileable android:shell="true" android:enabled="true" />
         <!-- Shares downloaded update APKs with the system package installer. -->

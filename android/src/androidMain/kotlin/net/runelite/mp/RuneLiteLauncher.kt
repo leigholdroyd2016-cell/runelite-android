@@ -84,6 +84,8 @@ class RuneLiteLauncher(private val context: android.content.Context? = null) {
                 if (context != null) {
                     net.runelite.mp.plugins.PluginDexer.install(context)
                     logLine("plugin hub: on-device dexing enabled")
+                    net.runelite.mp.plugins.LocalPluginLoader.prepare(context)
+                    logLine("local plugins: ${net.runelite.mp.plugins.LocalPluginLoader.pluginsDir(context)}")
                 }
                 // ClientUI checks this static-init time — must be set *before* RuneLite.main
                 // touches that class. With this on, ClientUI never adds its JTabbedPane
@@ -127,6 +129,11 @@ class RuneLiteLauncher(private val context: android.content.Context? = null) {
                     logLine("bootstrapping plugins (RuneLite.loadCorePlugins doesn't see Android dex)")
                     PluginBootstrap.bootstrap(context)
                     logLine("plugin bootstrap done")
+                    try {
+                        net.runelite.mp.plugins.LocalPluginLoader.load(context) { logLine(it) }
+                    } catch (t: Throwable) {
+                        logLine("local plugins failed: ${t.message}")
+                    }
                 } else {
                     logLine("context not provided to launcher; skipping plugin bootstrap")
                 }
